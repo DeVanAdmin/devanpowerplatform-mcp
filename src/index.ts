@@ -56,7 +56,7 @@ const powerPlatformPrompts = {
 
   ATTRIBUTE_DETAILS: (entityName: string, attributeName: string) =>
     `## Attribute: ${attributeName}\n\n` +
-    `Details for the '<span class="math-inline">\{attributeName\}' attribute of the '</span>{entityName}' entity:\n\n` +
+    `Details for the '${attributeName}' attribute of the '${entityName}' entity:\n\n` +
     `{{attribute_details}}\n\n` +
     `### Usage Notes\n` +
     `- Data Type: {{data_type}}\n` +
@@ -366,7 +366,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Entity metadata for '<span class="math-inline">\{entityName\}'\:\\n\\n</span>{metadataStr}`,
+            text: `Entity metadata for '${entityName}':\n\n${metadataStr}`,
           },
         ],
       };
@@ -404,7 +404,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Attributes for entity '<span class="math-inline">\{entityName\}'\:\\n\\n</span>{attributesStr}`,
+            text: `Attributes for entity '${entityName}':\n\n${attributesStr}`,
           },
         ],
       };
@@ -443,7 +443,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Attribute '<span class="math-inline">\{attributeName\}' for entity '</span>{entityName}':\n\n${attributeStr}`,
+            text: `Attribute '${attributeName}' for entity '${entityName}':\n\n${attributeStr}`,
           },
         ],
       };
@@ -481,7 +481,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Relationships for entity '<span class="math-inline">\{entityName\}'\:\\n\\n</span>{relationshipsStr}`,
+            text: `Relationships for entity '${entityName}':\n\n${relationshipsStr}`,
           },
         ],
       };
@@ -519,7 +519,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Global option set '<span class="math-inline">\{optionSetName\}'\:\\n\\n</span>{optionSetStr}`,
+            text: `Global option set '${optionSetName}':\n\n${optionSetStr}`,
           },
         ],
       };
@@ -558,7 +558,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Record from '<span class="math-inline">\{entityNamePlural\}' with ID '</span>{recordId}':\n\n${recordStr}`,
+            text: `Record from '${entityNamePlural}' with ID '${recordId}':\n\n${recordStr}`,
           },
         ],
       };
@@ -579,4 +579,336 @@ server.tool(
 // PowerPlatform query records with filter
 server.tool(
   "query-records",
-  "Query records using an OData
+  "Query records using an OData filter expression",
+  {
+    entityNamePlural: z.string().describe("The plural name of the entity (e.g., 'accounts', 'contacts')"),
+    filter: z.string().describe("OData filter expression (e.g., \"name eq 'test'\" or \"createdon gt 2023-01-01\")"),
+    maxRecords: z.number().optional().describe("Maximum number of records to retrieve (default: 50)"),
+  },
+  async ({ entityNamePlural, filter, maxRecords }) => {
+    try {
+      // Get or initialize PowerPlatformService
+      const service = getPowerPlatformService();
+      const records = await service.queryRecords(entityNamePlural, filter, maxRecords || 50);
+      
+      // Format the records as a string for text display
+      const recordsStr = JSON.stringify(records, null, 2);
+      const recordCount = records.value?.length || 0;
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Retrieved ${recordCount} records from '${entityNamePlural}' with filter '${filter}':\n\n${recordsStr}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error querying records:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to query records: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+// PowerPlatform create record
+server.tool(
+  "create-record",
+  "Create a new record in a PowerPlatform entity",
+  {
+    entityNamePlural: z.string().describe("The plural name of the entity (e.g., 'accounts', 'contacts')"),
+    recordData: z.record(z.any()).describe("The data for the new record as a JSON object"),
+  },
+  async ({ entityNamePlural, recordData }: { entityNamePlural: string; recordData: Record<string, any> }) => {
+    try {
+      const service = getPowerPlatformService();
+      const newRecord = await service.createRecord(entityNamePlural, recordData);
+
+      const newRecordStr = JSON.stringify(newRecord, null, 2);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully created new record in '${entityNamePlural}':\n\n${newRecordStr}`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error creating record:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to create record: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+// PowerPlatform update record
+server.tool(
+  "update-record",
+  "Update an existing record in a PowerPlatform entity",
+  {
+    entityNamePlural: z.string().describe("The plural name of the entity"),
+    recordId: z.string().describe("The GUID of the record to update"),
+    recordData: z.record(z.any()).describe("The data to update in the record as a JSON object"),
+  },
+  async ({ entityNamePlural, recordId, recordData }: { entityNamePlural: string; recordId: string; recordData: Record<string, any> }) => {
+    try {
+      const service = getPowerPlatformService();
+      await service.updateRecord(entityNamePlural, recordId, recordData);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully updated record '${recordId}' in '${entityNamePlural}'.`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error updating record:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to update record: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+// PowerPlatform delete record
+server.tool(
+  "delete-record",
+  "Delete a record from a PowerPlatform entity by ID",
+  {
+    entityNamePlural: z.string().describe("The plural name of the entity"),
+    recordId: z.string().describe("The GUID of the record to delete"),
+  },
+  async ({ entityNamePlural, recordId }: { entityNamePlural: string; recordId: string }) => {
+    try {
+      const service = getPowerPlatformService();
+      await service.deleteRecord(entityNamePlural, recordId);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Successfully deleted record '${recordId}' from '${entityNamePlural}'.`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error deleting record:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to delete record: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+
+// PowerPlatform MCP Prompts
+server.tool(
+  "use-powerplatform-prompt",
+  "Use a predefined prompt template for PowerPlatform entities",
+  {
+    promptType: z.enum([
+      "ENTITY_OVERVIEW", 
+      "ATTRIBUTE_DETAILS", 
+      "QUERY_TEMPLATE", 
+      "RELATIONSHIP_MAP"
+    ]).describe("The type of prompt template to use"),
+    entityName: z.string().describe("The logical name of the entity"),
+    attributeName: z.string().optional().describe("The logical name of the attribute (required for ATTRIBUTE_DETAILS prompt)"),
+  },
+  async ({ promptType, entityName, attributeName }) => {
+    try {
+      // Get or initialize PowerPlatformService
+      const service = getPowerPlatformService();
+      
+      let promptContent = "";
+      let replacements: Record<string, string> = {};
+      
+      switch (promptType) {
+        case "ENTITY_OVERVIEW": {
+          // Get entity metadata and key attributes
+          const [metadata, attributes] = await Promise.all([
+            service.getEntityMetadata(entityName),
+            service.getEntityAttributes(entityName)
+          ]);
+          
+          // Format entity details
+          const entityDetails = `- Display Name: ${metadata.DisplayName?.UserLocalizedLabel?.Label || entityName}\n` +
+            `- Schema Name: ${metadata.SchemaName}\n` +
+            `- Description: ${metadata.Description?.UserLocalizedLabel?.Label || 'No description'}\n` +
+            `- Primary Key: ${metadata.PrimaryIdAttribute}\n` +
+            `- Primary Name: ${metadata.PrimaryNameAttribute}`;
+            
+          // Get key attributes
+          const keyAttributes = attributes.value
+            //.slice(0, 10) // Limit to first 10 important attributes
+            .map((attr: any) => {
+                const attrType = attr["@odata.type"] || attr.odata?.type || "Unknown type";
+                return `- ${attr.LogicalName}: ${attrType}`;
+              })
+            .join('\n');
+            
+          // Get relationships summary
+          const relationships = await service.getEntityRelationships(entityName);
+          const oneToManyCount = relationships.oneToMany.value.length;
+          const manyToManyCount = relationships.manyToMany.value.length;
+          
+          const relationshipsSummary = `- One-to-Many Relationships: ${oneToManyCount}\n` +
+                                      `- Many-to-Many Relationships: ${manyToManyCount}`;
+          
+          promptContent = powerPlatformPrompts.ENTITY_OVERVIEW(entityName);
+          replacements = {
+            '{{entity_details}}': entityDetails,
+            '{{key_attributes}}': keyAttributes,
+            '{{relationships}}': relationshipsSummary
+          };
+          break;
+        }
+        
+        case "ATTRIBUTE_DETAILS": {
+          if (!attributeName) {
+            throw new Error("attributeName is required for ATTRIBUTE_DETAILS prompt");
+          }
+          
+          // Get attribute details
+          const attribute = await service.getEntityAttribute(entityName, attributeName);
+          
+          // Format attribute details
+          const attrDetails = `- Display Name: ${attribute.DisplayName?.UserLocalizedLabel?.Label || attributeName}\n` +
+            `- Description: ${attribute.Description?.UserLocalizedLabel?.Label || 'No description'}\n` +
+            `- Type: ${attribute.AttributeType}\n` +
+            `- Format: ${attribute.Format || 'N/A'}\n` +
+            `- Is Required: ${attribute.RequiredLevel?.Value || 'No'}\n` +
+            `- Is Searchable: ${attribute.IsValidForAdvancedFind || false}`;
+            
+          promptContent = powerPlatformPrompts.ATTRIBUTE_DETAILS(entityName, attributeName);
+          replacements = {
+            '{{attribute_details}}': attrDetails,
+            '{{data_type}}': attribute.AttributeType,
+            '{{required}}': attribute.RequiredLevel?.Value || 'No',
+            '{{max_length}}': attribute.MaxLength || 'N/A'
+          };
+          break;
+        }
+        
+        case "QUERY_TEMPLATE": {
+          // Get entity metadata to determine plural name
+          const metadata = await service.getEntityMetadata(entityName);
+          const entityNamePlural = metadata.EntitySetName;
+          
+          // Get a few important fields for the select example
+          const attributes = await service.getEntityAttributes(entityName);
+          const selectFields = attributes.value
+            .filter((attr: any) => attr.IsValidForRead === true && !attr.AttributeOf)
+            .slice(0, 5) // Just take first 5 for example
+            .map((attr: any) => attr.LogicalName)
+            .join(',');
+            
+          promptContent = powerPlatformPrompts.QUERY_TEMPLATE(entityNamePlural);
+          replacements = {
+            '{{selected_fields}}': selectFields,
+            '{{filter_conditions}}': `${metadata.PrimaryNameAttribute} eq 'Example'`,
+            '{{order_by}}': `${metadata.PrimaryNameAttribute} asc`,
+            '{{max_records}}': '50'
+          };
+          break;
+        }
+        
+        case "RELATIONSHIP_MAP": {
+          // Get relationships
+          const relationships = await service.getEntityRelationships(entityName);
+          
+          // Format one-to-many relationships where this entity is primary
+          const oneToManyPrimary = relationships.oneToMany.value
+            .filter((rel: any) => rel.ReferencingEntity !== entityName)
+            //.slice(0, 10) // Limit to 10 for readability
+            .map((rel: any) => `- ${rel.SchemaName}: ${entityName} (1) → ${rel.ReferencingEntity} (N)`)
+            .join('\n');
+            
+          // Format one-to-many relationships where this entity is related
+          const oneToManyRelated = relationships.oneToMany.value
+            .filter((rel: any) => rel.ReferencingEntity === entityName)
+            //.slice(0, 10) // Limit to 10 for readability
+            .map((rel: any) => `- ${rel.SchemaName}: ${rel.ReferencedEntity} (1) → ${entityName} (N)`)
+            .join('\n');
+            
+          // Format many-to-many relationships
+          const manyToMany = relationships.manyToMany.value
+            //.slice(0, 10) // Limit to 10 for readability
+            .map((rel: any) => {
+              const otherEntity = rel.Entity1LogicalName === entityName ? rel.Entity2LogicalName : rel.Entity1LogicalName;
+              return `- ${rel.SchemaName}: ${entityName} (N) ↔ ${otherEntity} (N)`;
+            })
+            .join('\n');
+          
+          promptContent = powerPlatformPrompts.RELATIONSHIP_MAP(entityName);
+          replacements = {
+            '{{one_to_many_primary}}': oneToManyPrimary || 'None found',
+            '{{one_to_many_related}}': oneToManyRelated || 'None found',
+            '{{many_to_many}}': manyToMany || 'None found'
+          };
+          break;
+        }
+      }
+      
+      // Replace all placeholders in the template
+      for (const [placeholder, value] of Object.entries(replacements)) {
+        promptContent = promptContent.replace(placeholder, value);
+      }
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: promptContent,
+          },
+        ],
+      };
+    } catch (error: any) {
+      console.error("Error using PowerPlatform prompt:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Failed to use PowerPlatform prompt: ${error.message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Initializing PowerPlatform MCP Server...");
+}
+
+main().catch((error) => {
+  console.error("Fatal error in main():", error);
+  process.exit(1);
+});
