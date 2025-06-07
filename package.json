@@ -1,5 +1,5 @@
 {
-  "name": "powerplatform-mcp",
+  "name": "devanpowerplatform-mcp",
   "version": "0.4.5",
   "description": "PowerPlatform Model Context Protocol server",
   "main": "build/index.js",
@@ -21,7 +21,7 @@
     "dynamics",
     "dataverse"
   ],
-  "author": "Michal Sobieraj",
+  "author": "DeVan",
   "license": "MIT",
   "type": "module",
   "publishConfig": {
@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/michsob/powerplatform-mcp.git"
+    "url": "git+https://github.com/devanadmin/devanpowerplatform-mcp.git"
   },
   "engines": {
     "node": ">=16.0.0"
